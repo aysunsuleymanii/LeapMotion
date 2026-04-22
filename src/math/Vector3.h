@@ -20,6 +20,8 @@ struct Vector3 {
         return l > 0 ? Vector3{x/l, y/l, z/l} : Vector3{};
     }
 
-    // Angle (radians) of the XY projection — used for rotation gesture
+    // Angle (radians) of the XY projection — used for rotation gesture in HMD mode
     float xyAngle() const { return std::atan2(y, x); }
+    // Angle (radians) of the XZ projection — used for rotation in Desktop mode
+    float xzAngle() const { return std::atan2(z, x); }
 };

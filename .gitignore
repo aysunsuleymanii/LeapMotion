@@ -17,9 +17,7 @@ Makefile
 # Executables
 leap
 
-# Output folders
-src/output/
-output/
+
 
 # Optional
 *.log

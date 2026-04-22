@@ -3,8 +3,9 @@
 Hand::Hand(const LEAP_HAND &raw) {
     id_ = raw.id;
     left_ = (raw.type == eLeapHandType_Left);
-    pinch_ = raw.pinch_strength;
-    grab_ = raw.grab_strength;
+    pinch_         = raw.pinch_strength;
+    pinchDistance_ = raw.pinch_distance;
+    grab_          = raw.grab_strength;
 
     // ── Palm ──
     palm_ = {
@@ -42,6 +43,7 @@ Hand::Hand(const LEAP_HAND &raw) {
 uint32_t Hand::id() const noexcept { return id_; }
 bool Hand::isLeft() const noexcept { return left_; }
 float Hand::pinch() const noexcept { return pinch_; }
+float Hand::pinchDistance() const noexcept { return pinchDistance_; }
 float Hand::grab() const noexcept { return grab_; }
 
 const Vector3 &Hand::palmPosition() const noexcept { return palm_; }
@@ -50,6 +52,10 @@ const Vector3 &Hand::palmVelocity() const noexcept { return palmVel_; }
 const Vector3 &Hand::fingerTip(int index) const noexcept {
     static Vector3 zero{};
     return (index >= 0 && index < 5) ? tips_[index] : zero;
+}
+
+bool Hand::isExtended(int index) const noexcept {
+    return (index >= 0 && index < 5) ? extended_[index] : false;
 }
 
 int Hand::extendedFingerCount() const noexcept {
