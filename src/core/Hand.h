@@ -5,16 +5,32 @@
 
 class Hand {
 public:
-    Hand(const LEAP_HAND& raw);
+    explicit Hand(const LEAP_HAND& raw);
 
-    bool isLeft() const;
-    float pinch() const;
-    float grab() const;
-    Vector3 palmPosition() const;
+    uint32_t id()           const noexcept;
+    bool     isLeft()       const noexcept;
+    float    pinch()        const noexcept;
+    float    grab()         const noexcept;
+
+    const Vector3& palmPosition() const noexcept;
+    const Vector3& palmVelocity() const noexcept;
+
+    const Vector3& fingerTip(int index) const noexcept;
+
+    int extendedFingerCount() const noexcept;
 
 private:
-    bool left_;
-    float pinch_;
-    float grab_;
-    Vector3 palm_;
+    uint32_t id_;
+    bool     left_;
+    float    pinch_;
+    float    grab_;
+
+    Vector3  palm_;
+    Vector3  palmVel_;
+
+    Vector3  tips_[5];
+    bool     extended_[5];
+
+    // 🔥 cached (important)
+    int extendedCount_;
 };

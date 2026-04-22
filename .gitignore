@@ -1,1 +1,28 @@
+# macOS
+.DS_Store
+
+# CMake build folder
+build/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Compiled object files
+*.o
+*.o.d
+
+# Executables
+leap
+
+# Output folders
+src/output/
+output/
+
+# Optional
+*.log
+
+
 .idea/

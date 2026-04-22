@@ -1,19 +1,13 @@
-//
-// Created by Aysun Suleymanturk on 2.3.26.
-//
-#pragma once
-#include "Hand.h"
-
-
 #pragma once
 
 #include <vector>
-
+#include "Hand.h"
+#include "../../external/ultraleap/include/LeapC.h"
 
 class Frame {
 public:
     Frame();
-    Frame(const LEAP_TRACKING_EVENT* raw);
+    explicit Frame(const LEAP_TRACKING_EVENT* raw);
 
     const std::vector<Hand>& hands() const;
 

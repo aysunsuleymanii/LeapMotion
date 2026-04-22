@@ -8,13 +8,11 @@ set(LEAP_SDK_PATH ${CMAKE_SOURCE_DIR}/external/ultraleap)
 
 file(GLOB_RECURSE SRC_FILES src/*.cpp)
 
-add_executable(leap
-        ${SRC_FILES}
-)
+add_executable(leap ${SRC_FILES})
 
 target_include_directories(leap PRIVATE
         ${LEAP_SDK_PATH}/include
-        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/src
 )
 
 target_link_libraries(leap PRIVATE
@@ -22,7 +20,7 @@ target_link_libraries(leap PRIVATE
 )
 
 set_target_properties(leap PROPERTIES
-        BUILD_RPATH "${LEAP_SDK_PATH}/lib"
+        BUILD_RPATH   "${LEAP_SDK_PATH}/lib"
         INSTALL_RPATH "${LEAP_SDK_PATH}/lib"
 )
 
@@ -30,5 +28,6 @@ if(APPLE)
     target_link_libraries(leap PRIVATE
             "-framework ApplicationServices"
             "-framework CoreFoundation"
+            "-framework CoreGraphics"
     )
 endif()
