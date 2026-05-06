@@ -9,10 +9,13 @@ namespace Config {
 
     // ── Air cursor ──────────────────────────────────────────────────────────
     // Leap reports fingertip positions in mm relative to the device.
-    // The tracking volume is roughly ±250 mm wide. To map that range onto
-    // a ~1440 px wide screen we need a scale near 5.0.
-    constexpr float CURSOR_SCALE_X     = 5.0f;
-    constexpr float CURSOR_SCALE_Y     = 5.0f;
+    // Lowered from 5.0 → 3.5 because at higher sensitivity, hand tremor
+    // (1-2 mm of natural micro-motion) becomes 5-10 px of cursor wobble,
+    // which is enough to miss small UI targets in dense apps like
+    // Anatomy 3D Atlas. The user can still reach the whole screen — they
+    // just have to move their hand a bit further.
+    constexpr float CURSOR_SCALE_X     = 3.5f;
+    constexpr float CURSOR_SCALE_Y     = 3.5f;
 
     // ── Scroll ──────────────────────────────────────────────────────────────
     // Palm Y/X velocity (mm/s) → scroll pixels per event.
@@ -29,7 +32,10 @@ namespace Config {
 
     // ── Rotation ────────────────────────────────────────────────────────────
     // Minimum angle delta (radians) per frame to emit a rotate event.
-    constexpr float ROTATE_MIN_DELTA   = 0.02f;
+    // Raised because hand tremor during a pinch produces ~0.02 rad/frame
+    // micro-changes that fire spurious rotates. Real wrist twist crosses
+    // 0.05 rad/frame easily.
+    constexpr float ROTATE_MIN_DELTA   = 0.05f;
     // Scale: radians → degrees (CGEvent rotation unit).
     constexpr float ROTATE_SCALE       = 57.296f;   // 180/π
 
@@ -38,7 +44,7 @@ namespace Config {
     // mostly stationary. 1 finger → left click, 2 fingers → right click.
     // Raised thresholds to suppress false taps from hand tremor / pose flicker.
     constexpr float TAP_Z_VELOCITY     = 500.0f;    // mm/s toward the screen
-    constexpr float TAP_PALM_MAX_SPEED = 80.0f;     // palm must be quite still
+    constexpr float TAP_PALM_MAX_SPEED = 60.0f;     // palm must be very still
     constexpr int   TAP_COOLDOWN_FRAMES = 18;       // ~150ms lock-out
 
     // Double-tap window for smart zoom. Leap runs ~120 Hz → 48 frames ≈ 400 ms.
@@ -58,24 +64,34 @@ namespace Config {
     // ── Grab / Drag / Drop (3D-exclusive) ───────────────────────────────────
     // grab_strength = 0 (open) → 1 (closed fist). Hysteresis prevents
     // a partially closed hand from toggling drag on/off every frame.
-    constexpr float GRAB_ON_THRESHOLD   = 0.85f;   // rising edge → start drag
-    constexpr float GRAB_OFF_THRESHOLD  = 0.55f;   // falling edge → drop
+    constexpr float GRAB_ON_THRESHOLD   = 0.55f;   // rising edge → start drag
+    constexpr float GRAB_OFF_THRESHOLD  = 0.30f;   // falling edge → drop
     // Require the new state for N consecutive frames before committing.
     constexpr int   GRAB_STABILITY_FRAMES = 3;
 
     // ── Pose classifier ─────────────────────────────────────────────────────
     // If grab_strength is above this, the hand is treated as a fist regardless
     // of how many digits the SDK marks "extended" (noisy at high grab).
-    constexpr float FIST_GRAB_MIN       = 0.75f;
+    // Lowered to 0.50 to match the real range of users' "closed-hand" grab.
+    constexpr float FIST_GRAB_MIN       = 0.50f;
 
     // The SDK's is_extended flags flicker frame-to-frame (especially the
     // thumb). Require a new pose to be stable for this many frames before
     // switching — a brief flicker is ignored. At ~120 fps, 4 frames ≈ 33 ms.
     constexpr int   POSE_STABILITY_FRAMES = 4;
 
-    // Pinch pose requires thumb+index fingertips to actually be close
-    // together (in mm). Without this, a hand-at-rest with the thumb
-    // coincidentally flagged "extended" classifies as a pinch.
-    constexpr float PINCH_POSE_MAX_DIST = 60.0f;
+    // Pinch pose is only recognized when the SDK's own pinch_strength is
+    // high AND the physical distance is short AND non-pinch fingers are
+    // curled. Threshold at 0.85 — high enough to reject accidental "thumb
+    // near index" during normal motion, but low enough that the Pinch pose
+    // holds for multiple frames so we can actually compute zoom deltas.
+    constexpr float PINCH_POSE_MIN_STRENGTH = 0.85f;   // 0..1 from the SDK
+    constexpr float PINCH_POSE_MAX_DIST     = 50.0f;   // mm
+
+    // Fist pose requires high grab_strength AND low pinch_strength. A tight
+    // pinch alone drives grab_strength up (thumb coming in) — we reject those
+    // because the user is pinching, not making a fist. Real fist: thumb
+    // curled in, pinch signal stays low.
+    constexpr float FIST_MAX_PINCH          = 0.70f;
 
 } // namespace Config

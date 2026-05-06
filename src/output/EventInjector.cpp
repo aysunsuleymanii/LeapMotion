@@ -1,6 +1,7 @@
 #include "EventInjector.h"
 #include <ApplicationServices/ApplicationServices.h>
 #include <iostream>
+#include <ctime>
 
 
 static CGPoint currentCursorPos() {
@@ -31,8 +32,18 @@ void EventInjector::moveCursor(CGPoint pos) {
 
 void EventInjector::leftClick(CGPoint pos) {
     CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, pos, kCGMouseButtonLeft);
-    CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, pos, kCGMouseButtonLeft);
+    CGEventRef up   = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp,   pos, kCGMouseButtonLeft);
+    // Many apps (especially OpenGL/Metal apps like Anatomy 3D Atlas) ignore
+    // synthetic clicks that don't set the click state. This field tells the
+    // OS "this is the 1st click in a click sequence."
+    CGEventSetIntegerValueField(down, kCGMouseEventClickState, 1);
+    CGEventSetIntegerValueField(up,   kCGMouseEventClickState, 1);
     CGEventPost(kCGHIDEventTap, down);
+    // Small dwell between down and up so apps register a click instead of
+    // interpreting "down + immediate up at slightly different coords" as
+    // the start of a drag. 30ms is short enough to feel instant.
+    struct timespec ts{0, 30'000'000};
+    nanosleep(&ts, nullptr);
     CGEventPost(kCGHIDEventTap, up);
     CFRelease(down);
     CFRelease(up);
@@ -40,8 +51,12 @@ void EventInjector::leftClick(CGPoint pos) {
 
 void EventInjector::rightClick(CGPoint pos) {
     CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventRightMouseDown, pos, kCGMouseButtonRight);
-    CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventRightMouseUp, pos, kCGMouseButtonRight);
+    CGEventRef up   = CGEventCreateMouseEvent(NULL, kCGEventRightMouseUp,   pos, kCGMouseButtonRight);
+    CGEventSetIntegerValueField(down, kCGMouseEventClickState, 1);
+    CGEventSetIntegerValueField(up,   kCGMouseEventClickState, 1);
     CGEventPost(kCGHIDEventTap, down);
+    struct timespec ts{0, 30'000'000};
+    nanosleep(&ts, nullptr);
     CGEventPost(kCGHIDEventTap, up);
     CFRelease(down);
     CFRelease(up);
@@ -134,18 +149,21 @@ void EventInjector::swipeRight() {
 
 void EventInjector::mouseDown(CGPoint pos) {
     CGEventRef e = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, pos, kCGMouseButtonLeft);
+    CGEventSetIntegerValueField(e, kCGMouseEventClickState, 1);
     CGEventPost(kCGHIDEventTap, e);
     CFRelease(e);
 }
 
 void EventInjector::mouseDragged(CGPoint pos) {
     CGEventRef e = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDragged, pos, kCGMouseButtonLeft);
+    CGEventSetIntegerValueField(e, kCGMouseEventClickState, 1);
     CGEventPost(kCGHIDEventTap, e);
     CFRelease(e);
 }
 
 void EventInjector::mouseUp(CGPoint pos) {
     CGEventRef e = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, pos, kCGMouseButtonLeft);
+    CGEventSetIntegerValueField(e, kCGMouseEventClickState, 1);
     CGEventPost(kCGHIDEventTap, e);
     CFRelease(e);
 }

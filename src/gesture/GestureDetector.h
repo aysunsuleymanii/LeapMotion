@@ -20,6 +20,12 @@ struct HandState {
     // ── Cursor smoothing ──────────────────────────────────────────────
     CGPoint smoothedPos = {0, 0};
     bool    hasPrevPos  = false;
+    // Last cursor position from when palm velocity was LOW (hovering).
+    // Click events fire at this position, not the current smoothed position,
+    // because by the time the tap motion is detected the fingertip has
+    // already drifted from the aim point.
+    CGPoint stablePos   = {0, 0};
+    bool    hasStablePos = false;
 
     // ── Previous finger-tip positions (for velocity derivation) ───────
     Vector3 prevIndexTip  = {};
@@ -52,10 +58,12 @@ struct HandState {
     int lastTwoFingerTapFrame = -10000;
 
     // ── Drag / drop state ─────────────────────────────────────────────
-    bool dragging            = false;
-    int  grabRisingFrames    = 0;   // how many frames grab has been "on"
-    int  grabFallingFrames   = 0;   // how many frames grab has been "off"
-    CGPoint dragAnchor       = {0, 0};
+    bool    dragging            = false;
+    int     grabRisingFrames    = 0;   // how many frames grab has been "on"
+    int     grabFallingFrames   = 0;   // how many frames grab has been "off"
+    CGPoint dragAnchor          = {0, 0};
+    Vector3 dragPalmStart       = {};  // palm position at drag start
+    bool    hasDragPalmStart    = false;
 
     // ── Last (committed) pose and stability hysteresis ────────────────
     // Leap's is_extended flags flicker, so we only commit to a new pose

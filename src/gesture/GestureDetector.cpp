@@ -103,6 +103,17 @@ void GestureDetector::update(const Frame& frame)
                 state.hasPrevTips = false;
                 if (pose == Pose::OneFinger) state.oneFingerTapArmed = true;
                 if (pose == Pose::TwoFinger) state.twoFingerTapArmed = true;
+
+                // CRITICAL: when leaving Pinch, the index fingertip is moving
+                // fast (releasing the pinch). That motion has high vy and
+                // can falsely trigger a tap. Lock out tap detection for a
+                // generous window after any Pinch->X transition so the
+                // release motion doesn't click random things in the app.
+                if (state.lastPose == Pose::Pinch) {
+                    state.tapCooldown = 30;          // ~250 ms at 120 fps
+                    state.oneFingerTapArmed = false; // require re-arm
+                    state.twoFingerTapArmed = false;
+                }
             }
             state.lastPose = pose;
 
@@ -156,7 +167,14 @@ void GestureDetector::update(const Frame& frame)
 
 Pose GestureDetector::classify(const Hand& hand) const
 {
-    if (hand.grab() > Config::FIST_GRAB_MIN) return Pose::Fist;
+    // Fist requires a strong grab WITH a low pinch. A tight pinch gesture
+    // also produces high grab_strength (because thumb+index coming together
+    // looks like half a fist), so we reject those by also requiring the
+    // pinch signal to be low — in a real fist the thumb is curled in, not
+    // pinching the index.
+    if (hand.grab()  > Config::FIST_GRAB_MIN &&
+        hand.pinch() < Config::FIST_MAX_PINCH)
+        return Pose::Fist;
 
     // The thumb's is_extended flag is notoriously noisy — it flickers every
     // few frames even when the user is holding a stable pose. So we classify
@@ -167,15 +185,22 @@ Pose GestureDetector::classify(const Hand& hand) const
     const bool ringExt   = hand.isExtended(3);
     const bool pinkyExt  = hand.isExtended(4);
 
-    // Pinch = thumb & index fingertips close together, other fingers curled.
-    // We check actual distance instead of trusting thumb.is_extended.
-    const bool pinchGeometry =
-        hand.pinchDistance() < Config::PINCH_POSE_MAX_DIST &&
+    // Pinch pose is ONLY when the user is actively pinching. The bar is
+    // intentionally very high (0.95) because pinch_strength transiently
+    // spikes to 0.7–0.8 during fast two-finger motion even when the user
+    // isn't pinching. Only a sustained true pinch crosses this threshold.
+    const bool pinchActive =
+        hand.pinch()         > Config::PINCH_POSE_MIN_STRENGTH &&
+        hand.pinchDistance() < Config::PINCH_POSE_MAX_DIST     &&
         !middleExt && !ringExt && !pinkyExt;
 
-    if (pinchGeometry) return Pose::Pinch;
+    if (pinchActive) return Pose::Pinch;
 
     // Index + middle only → two-finger gestures.
+    // Note: this is a STRICT pose — must be the index+middle configuration
+    // (the macOS trackpad two-finger gesture). Holding thumb + index is
+    // OneFinger, not TwoFinger, because we can't reliably tell intentional
+    // "two fingers" from a relaxed hand with thumb out.
     if (indexExt && middleExt && !ringExt && !pinkyExt)
         return Pose::TwoFinger;
 
@@ -246,13 +271,34 @@ void GestureDetector::moveCursorOneFinger(const Hand& hand, HandState& state)
 
     // Reject tracking spikes (>180 px/frame is implausible)
     if (dist > 180.0f) { EventInjector::moveCursor(state.smoothedPos); return; }
-    // Dead zone — ignore tremor
-    if (dist < 3.0f)   { EventInjector::moveCursor(state.smoothedPos); return; }
+
+    // Dead zone — bigger now (5 px) to ignore natural hand tremor.
+    // BUT we still update stablePos here, because if the user is holding
+    // perfectly still over a target and then taps, the click should fire
+    // at the smoothed position that's THE TARGET, not at a stale value
+    // from before the pause started.
+    if (dist < 5.0f) {
+        state.stablePos    = state.smoothedPos;   // refresh every still frame
+        state.hasStablePos = true;
+        EventInjector::moveCursor(state.smoothedPos);
+        return;
+    }
 
     // Adaptive smoothing: slow motion → heavy smooth, fast motion → responsive
     float alpha = 0.25f + std::min(dist / 70.0f, 0.60f);
     state.smoothedPos.x = state.smoothedPos.x * (1.0f - alpha) + raw.x * alpha;
     state.smoothedPos.y = state.smoothedPos.y * (1.0f - alpha) + raw.y * alpha;
+
+    // Track the stable hover position for clicks. Update whenever the user
+    // is holding still or moving slowly — any motion below this threshold
+    // is "aiming," anything above is "jabbing for a tap."
+    bool palmStill = hand.palmVelocity().length() < 60.0f;
+    bool fingerStill = state.hasPrevTips
+        && std::abs(hand.fingerTip(1).y - state.prevIndexTip.y) * 120.0f < 120.0f;
+    if (palmStill && fingerStill) {
+        state.stablePos    = state.smoothedPos;
+        state.hasStablePos = true;
+    }
 
     EventInjector::moveCursor(state.smoothedPos);
 }
@@ -276,10 +322,20 @@ bool GestureDetector::detectOneFingerTap(const Hand& hand, HandState& state)
 
     if (state.oneFingerTapArmed && vy < -Config::TAP_Z_VELOCITY)
     {
-        EventInjector::leftClick(state.smoothedPos);
+        // Click at the stable hover position (where the user was aiming),
+        // not the current smoothed position (which drifted during the jab).
+        // We also warp the cursor there first so the click event lands on
+        // the right pixel — macOS click events use the cursor location at
+        // the moment the event is processed.
+        CGPoint clickPos = state.hasStablePos ? state.stablePos : state.smoothedPos;
+        EventInjector::moveCursor(clickPos);
+        EventInjector::leftClick(clickPos);
+        state.smoothedPos       = clickPos;   // resync smoothed pos to the click point
         state.tapCooldown       = Config::TAP_COOLDOWN_FRAMES;
         state.oneFingerTapArmed = false;
-        if (Config::DEBUG_GESTURES) std::cerr << "[fire] LEFT CLICK (vy=" << vy << ")\n";
+        if (Config::DEBUG_GESTURES)
+            std::cerr << "[fire] LEFT CLICK at (" << clickPos.x << "," << clickPos.y
+                      << ") vy=" << vy << "\n";
         return true;
     }
 
@@ -332,6 +388,13 @@ void GestureDetector::moveCursorTwoFinger(const Hand& hand, HandState& state)
     state.smoothedPos.x = state.smoothedPos.x * (1.0f - alpha) + raw.x * alpha;
     state.smoothedPos.y = state.smoothedPos.y * (1.0f - alpha) + raw.y * alpha;
 
+    // Same stable-pos tracking as one-finger mode (see comment there)
+    bool palmStill = hand.palmVelocity().length() < 60.0f;
+    if (palmStill) {
+        state.stablePos    = state.smoothedPos;
+        state.hasStablePos = true;
+    }
+
     EventInjector::moveCursor(state.smoothedPos);
 }
 
@@ -354,23 +417,28 @@ bool GestureDetector::detectTwoFingerTap(const Hand& hand, HandState& state)
 
     if (state.twoFingerTapArmed && bothStabbing)
     {
+        CGPoint clickPos = state.hasStablePos ? state.stablePos : state.smoothedPos;
+
         // Check for smart-zoom (second tap within window)
         int gap = frameCount_ - state.lastTwoFingerTapFrame;
         if (gap <= Config::SMART_ZOOM_MAX_GAP_FRAMES &&
             state.smartZoomCooldown == 0)
         {
-            EventInjector::smartZoom(state.smoothedPos);
+            EventInjector::moveCursor(clickPos);
+            EventInjector::smartZoom(clickPos);
             state.smartZoomCooldown     = 45;
-            state.lastTwoFingerTapFrame = -10000;   // consume both taps
+            state.lastTwoFingerTapFrame = -10000;
             if (Config::DEBUG_GESTURES) std::cerr << "[fire] SMART ZOOM\n";
         }
         else
         {
-            EventInjector::rightClick(state.smoothedPos);
+            EventInjector::moveCursor(clickPos);
+            EventInjector::rightClick(clickPos);
             state.lastTwoFingerTapFrame = frameCount_;
             if (Config::DEBUG_GESTURES) std::cerr << "[fire] RIGHT CLICK\n";
         }
 
+        state.smoothedPos       = clickPos;
         state.tapCooldown       = Config::TAP_COOLDOWN_FRAMES;
         state.twoFingerTapArmed = false;
         return true;
@@ -421,23 +489,25 @@ bool GestureDetector::detectSwipe(const Hand& hand, HandState& state)
 
 bool GestureDetector::detectScroll(const Hand& hand, HandState& state)
 {
-    // In Desktop mode, scroll direction is driven by horizontal palm motion:
-    //   Z = forward/back (toward/away from user) → vertical scroll
-    //   X = left/right                           → horizontal scroll
-    // Palm Y would be hand-height, which has no business driving scroll.
-    float vScrollY = hand.palmVelocity().z;   // forward/back → scroll up/down
-    float vScrollX = hand.palmVelocity().x;
+    // Don't emit scroll events during swipe cooldown — otherwise the
+    // hand's deceleration after a fast swipe shows up as a scroll.
+    if (state.swipeCooldown > 0) return false;
 
-    if (std::abs(vScrollY) < Config::SCROLL_MIN_SPEED &&
-        std::abs(vScrollX) < Config::SCROLL_MIN_SPEED)
-        return false;
+    // Spec: "Scroll: slide two fingers up or down."
+    // So scroll is VERTICAL-only (driven by palm Z = forward/back motion).
+    // Horizontal palm motion is owned by the swipe detector — we don't
+    // emit horizontal scroll events at all, which also stops apps from
+    // interpreting a horizontal scroll as a zoom gesture.
+    float vScrollY = hand.palmVelocity().z;   // forward/back → scroll up/down
+
+    if (std::abs(vScrollY) < Config::SCROLL_MIN_SPEED) return false;
 
     EventInjector::scroll(
-        static_cast<int32_t>( vScrollY * Config::SCROLL_SENSITIVITY),
-        static_cast<int32_t>(-vScrollX * Config::SCROLL_SENSITIVITY)
+        static_cast<int32_t>(vScrollY * Config::SCROLL_SENSITIVITY),
+        0   // no horizontal scroll — that's what swipe is for
     );
     if (Config::DEBUG_GESTURES && (frameCount_ % 10 == 0))
-        std::cerr << "[fire] SCROLL vY=" << vScrollY << " vX=" << vScrollX << "\n";
+        std::cerr << "[fire] SCROLL vY=" << vScrollY << "\n";
     return true;
 }
 
@@ -519,8 +589,6 @@ bool GestureDetector::detectRotate(const Hand& hand, HandState& state)
 
 void GestureDetector::handleFist(const Hand& hand, HandState& state)
 {
-    CGPoint palmScreen = palmToScreen(hand.palmPosition());
-
     if (!state.dragging)
     {
         // Looking for a stable rising edge on grab
@@ -530,12 +598,19 @@ void GestureDetector::handleFist(const Hand& hand, HandState& state)
             state.grabFallingFrames = 0;
             if (state.grabRisingFrames >= Config::GRAB_STABILITY_FRAMES)
             {
-                state.dragging   = true;
-                state.dragAnchor = palmScreen;
-                EventInjector::mouseDown(palmScreen);
+                state.dragging = true;
+                // Drag starts from the cursor's CURRENT on-screen position —
+                // where the user was pointing before they closed the fist.
+                // Do NOT use palmToScreen here: when the hand is closed, palm
+                // coordinates often clamp to screen edges because the palm
+                // origin sits outside the tracking volume we mapped for tips.
+                state.dragAnchor       = state.smoothedPos;
+                state.dragPalmStart    = hand.palmPosition();   // remember origin for deltas
+                state.hasDragPalmStart = true;
+                EventInjector::mouseDown(state.dragAnchor);
                 if (Config::DEBUG_GESTURES)
                     std::cerr << "[fire] DRAG START at ("
-                              << palmScreen.x << "," << palmScreen.y << ")\n";
+                              << state.dragAnchor.x << "," << state.dragAnchor.y << ")\n";
             }
         }
         else
@@ -545,6 +620,19 @@ void GestureDetector::handleFist(const Hand& hand, HandState& state)
     }
     else
     {
+        // Compute current cursor target = anchor + (palm displacement since grab)
+        // Scales palm motion the same way fingertips were scaled so motion
+        // feels consistent across poses.
+        CGPoint target = state.dragAnchor;
+        if (state.hasDragPalmStart) {
+            float dx = (hand.palmPosition().x - state.dragPalmStart.x)
+                       * Config::CURSOR_SCALE_X;
+            float dz = (hand.palmPosition().z - state.dragPalmStart.z)
+                       * Config::CURSOR_SCALE_Y;
+            target.x = std::clamp(state.dragAnchor.x + dx, 0.0, (double)screenW_ - 1);
+            target.y = std::clamp(state.dragAnchor.y + dz, 0.0, (double)screenH_ - 1);
+        }
+
         // Dragging: look for stable falling edge, else emit drag moves
         if (hand.grab() < Config::GRAB_OFF_THRESHOLD)
         {
@@ -552,25 +640,25 @@ void GestureDetector::handleFist(const Hand& hand, HandState& state)
             state.grabRisingFrames = 0;
             if (state.grabFallingFrames >= Config::GRAB_STABILITY_FRAMES)
             {
-                EventInjector::mouseUp(palmScreen);
+                EventInjector::mouseUp(target);
                 state.dragging          = false;
                 state.grabFallingFrames = 0;
+                state.hasDragPalmStart  = false;
                 if (Config::DEBUG_GESTURES)
                     std::cerr << "[fire] DROP at ("
-                              << palmScreen.x << "," << palmScreen.y << ")\n";
+                              << target.x << "," << target.y << ")\n";
             }
             else
             {
-                // Still considered "holding" during the release window
-                EventInjector::mouseDragged(palmScreen);
+                EventInjector::mouseDragged(target);
             }
         }
         else
         {
             state.grabFallingFrames = 0;
-            EventInjector::mouseDragged(palmScreen);
+            EventInjector::mouseDragged(target);
         }
-        state.smoothedPos = palmScreen;  // keep cursor pos in sync
+        state.smoothedPos = target;  // cursor stays in sync for the next pose
     }
 }
 
