@@ -40,3 +40,178 @@ make
 ```
 ./leap
 ```
+
+
+## Gesture Testing Guide
+
+Follow this order and test each gesture separately.
+
+---
+
+### 1. Cursor Movement (Index Finger)
+
+**Gesture:**
+- Only index finger extended
+- Move hand freely
+
+**Test:**
+- Open TextEdit or any app
+- Move hand left/right/up/down → cursor follows
+- Cursor must reach all screen edges (Dock, menu bar, etc.)
+
+**Logs:**
+- `pose=OneFinger`
+- No `[fire]` event for movement
+
+**Expected Result:**
+- Smooth tracking
+- Slight jitter allowed
+- Stable when hand is still
+
+---
+
+### 2. Left Click
+
+**Gesture:**
+- Index finger extended
+- Brief downward tap motion
+
+**Test:**
+- Hover over desktop folder
+- Tap gesture → folder selected
+
+**Logs:**
+- `[fire] LEFT CLICK at (X, Y)`
+
+---
+
+### 3. Right Click
+
+**Gesture:**
+- Index + middle finger (V shape)
+- Press down
+
+**Test:**
+- Right click on desktop background
+- Context menu appears
+
+**Logs:**
+- `[fire] RIGHT CLICK`
+
+---
+
+### 4. Scroll
+
+**Gesture:**
+- Index + middle finger extended
+- Move hand forward/backward
+
+**Test:**
+- Open Safari (long page)
+- Pull hand toward you → scroll down
+- Push away → scroll up
+
+**Logs:**
+- `[fire] SCROLL vY=XXX`
+
+---
+
+### 5. Swipe
+
+**Gesture:**
+- Index + middle finger extended
+- Fast horizontal movement
+
+**Test:**
+- Safari tabs or Photos app
+- Swipe left/right → change page/photo
+
+**Logs:**
+- `[fire] SWIPE LEFT / SWIPE RIGHT`
+
+**Important:**
+- Slow movement = scroll
+- Fast movement (~900 mm/s+) = swipe
+
+---
+
+### 6. Zoom (Pinch)
+
+**Gesture:**
+- Thumb + index finger pinch
+
+**Test:**
+- Safari webpage
+- Spread fingers → zoom in
+- Pinch → zoom out
+
+**Logs:**
+- `[fire] ZOOM delta=+X.X`
+- `[fire] ZOOM delta=-X.X`
+
+---
+
+### 7. Rotate
+
+**Gesture:**
+- Pinch + wrist rotation
+
+**Test:**
+- Open image in Preview
+- Rotate wrist → image rotates
+
+**Logs:**
+- `[fire] ROTATE delta=+X.X`
+
+---
+
+### 8. Smart Zoom
+
+**Gesture:**
+- Two-finger double tap
+
+**Test:**
+- Safari page
+- Quick double tap → smart zoom activates
+
+**Logs:**
+- `[fire] SMART ZOOM`
+
+---
+
+### 9. Drag & Drop (Fist Gesture)
+
+**Gesture:**
+- Make fist → drag starts
+- Move hand while closed
+- Open hand → drop
+
+**Test:**
+- Create file on Desktop
+- Create folder named `test`
+- Hover file → make fist → drag starts
+- Move into folder
+- Open hand → drop completes
+
+**Logs:**
+- `[fire] DRAG START at (X, Y)`
+- `[fire] DROP at (X, Y)`
+
+**Important:**
+If drag works correctly, core interaction system is fully functional.
+
+---
+
+## Final Test Checklist
+
+| # | Gesture | Test Area | Expected Result |
+|--|--------|----------|----------------|
+| 1 | Cursor Movement | Entire screen | Smooth tracking |
+| 2 | Left Click | Desktop folder | Select item |
+| 3 | Right Click | Desktop area | Context menu |
+| 4 | Scroll | Safari page | Page scroll |
+| 5 | Swipe | Photos/Safari | Page switching |
+| 6 | Zoom | Safari page | Zoom in/out |
+| 7 | Rotate | Preview image | Image rotation |
+| 8 | Smart Zoom | Safari page | Auto zoom |
+| 9 | Drag & Drop | Desktop files | File transfer |

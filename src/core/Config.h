@@ -9,13 +9,14 @@ namespace Config {
 
     // ── Air cursor ──────────────────────────────────────────────────────────
     // Leap reports fingertip positions in mm relative to the device.
-    // Lowered from 5.0 → 3.5 because at higher sensitivity, hand tremor
-    // (1-2 mm of natural micro-motion) becomes 5-10 px of cursor wobble,
-    // which is enough to miss small UI targets in dense apps like
-    // Anatomy 3D Atlas. The user can still reach the whole screen — they
-    // just have to move their hand a bit further.
-    constexpr float CURSOR_SCALE_X     = 3.5f;
-    constexpr float CURSOR_SCALE_Y     = 3.5f;
+    // The tracking volume is roughly ±200 mm wide in X and ±150 mm deep in Z.
+    // Scale 5.0 maps that range onto a ~1440-1512 px screen so the cursor
+    // can reach all four edges. (Smaller scales like 3.5 trap the cursor
+    // in the middle of the screen.) Click precision is achieved through
+    // the dead zone + smoothing in moveCursorOneFinger, not through
+    // lowering the scale.
+    constexpr float CURSOR_SCALE_X     = 5.0f;
+    constexpr float CURSOR_SCALE_Y     = 5.0f;
 
     // ── Scroll ──────────────────────────────────────────────────────────────
     // Palm Y/X velocity (mm/s) → scroll pixels per event.

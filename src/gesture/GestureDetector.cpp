@@ -272,12 +272,12 @@ void GestureDetector::moveCursorOneFinger(const Hand& hand, HandState& state)
     // Reject tracking spikes (>180 px/frame is implausible)
     if (dist > 180.0f) { EventInjector::moveCursor(state.smoothedPos); return; }
 
-    // Dead zone — bigger now (5 px) to ignore natural hand tremor.
-    // BUT we still update stablePos here, because if the user is holding
-    // perfectly still over a target and then taps, the click should fire
-    // at the smoothed position that's THE TARGET, not at a stale value
-    // from before the pause started.
-    if (dist < 5.0f) {
+    // Dead zone — at scale 5.0 hand tremor produces ~5px wobble.
+    // 6 px dead zone keeps cursor still during careful aiming. We still
+    // update stablePos here, because if the user is holding still over a
+    // target and then taps, the click should fire at the stable smoothed
+    // position (THE TARGET), not at a stale value from before the pause.
+    if (dist < 6.0f) {
         state.stablePos    = state.smoothedPos;   // refresh every still frame
         state.hasStablePos = true;
         EventInjector::moveCursor(state.smoothedPos);
