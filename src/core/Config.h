@@ -26,9 +26,9 @@ namespace Config {
     // ── Pinch / Zoom ────────────────────────────────────────────────────────
     // Zoom is driven by thumb↔index distance (the SDK's pinch_distance, in mm).
     // Scale: mm of change per frame → CGEvent zoom magnification units.
-    constexpr float PINCH_SCALE = 0.015f;
+    constexpr float PINCH_SCALE             = 0.003f;    // was 0.015
     // Noise floor on pinch distance delta (mm/frame).
-    constexpr float PINCH_NOISE_FLOOR = 1.5f;
+    constexpr float PINCH_NOISE_FLOOR       = 3.0f;      // was 1.5
 
     // ── Rotation ────────────────────────────────────────────────────────────
     // Minimum angle delta (radians) per frame to emit a rotate event.
@@ -73,26 +73,25 @@ namespace Config {
     // If grab_strength is above this, the hand is treated as a fist regardless
     // of how many digits the SDK marks "extended" (noisy at high grab).
     // Lowered to 0.50 to match the real range of users' "closed-hand" grab.
-    constexpr float FIST_GRAB_MIN = 0.50f;
 
     // The SDK's is_extended flags flicker frame-to-frame (especially the
     // thumb). Require a new pose to be stable for this many frames before
     // switching — a brief flicker is ignored. At ~120 fps, 4 frames ≈ 33 ms.
-    constexpr int POSE_STABILITY_FRAMES = 4;
-
+    constexpr int POSE_STABILITY_FRAMES = 6;   // was 4
     // Pinch pose is only recognized when the SDK's own pinch_strength is
     // high AND the physical distance is short AND non-pinch fingers are
     // curled. Threshold at 0.85 — high enough to reject accidental "thumb
     // near index" during normal motion, but low enough that the Pinch pose
     // holds for multiple frames so we can actually compute zoom deltas.
-    constexpr float PINCH_POSE_MIN_STRENGTH = 0.85f; // 0..1 from the SDK
-    constexpr float PINCH_POSE_MAX_DIST = 50.0f; // mm
+constexpr float PINCH_POSE_MIN_STRENGTH = 0.80f;     // was 0.85
+    constexpr float PINCH_POSE_MAX_DIST     = 40.0f;   // was 50 or 35
+    constexpr float FIST_GRAB_MIN           = 0.65f;     // was 0.50
 
     // Fist pose requires high grab_strength AND low pinch_strength. A tight
     // pinch alone drives grab_strength up (thumb coming in) — we reject those
     // because the user is pinching, not making a fist. Real fist: thumb
     // curled in, pinch signal stays low.
-    constexpr float FIST_MAX_PINCH = 0.70f;
+    constexpr float FIST_MAX_PINCH = 0.90f;
     constexpr float CURSOR_OFFSET_X = -100.0f;
 
     constexpr float LEAP_X_MIN = -150.0f; // mm — left edge of tracking volume

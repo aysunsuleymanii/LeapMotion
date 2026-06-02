@@ -87,13 +87,17 @@ void GestureDetector::update(const Frame &frame) {
                             << " -> " << poseName(pose) << "\n";
 
                 if (state.lastPose == Pose::TwoFinger) resetTwoFingerState(state, frameCount_);
-                if (state.lastPose == Pose::Pinch) resetPinchState(state);
+                if (state.lastPose == Pose::Pinch) {
+                    state.lastPinchFrame = frameCount_;
+                    resetPinchState(state);
+                }
                 // Drop stale cursor/tip history — it's from a different pose
                 // whose coordinates don't correspond to the new one's.
                 state.hasPrevPos = false;
                 state.hasPrevTips = false;
                 if (pose == Pose::OneFinger) state.oneFingerTapArmed = true;
                 if (pose == Pose::TwoFinger) state.twoFingerTapArmed = true;
+                if (pose == Pose::Pinch) state.tapCooldown = 20;
 
                 // CRITICAL: when leaving Pinch, the index fingertip is moving
                 // fast (releasing the pinch). That motion has high vy and
@@ -497,14 +501,17 @@ bool GestureDetector::detectScroll(const Hand &hand, HandState &state) {
 // fire in the same frame because they're measuring orthogonal things.
 // ─────────────────────────────────────────────────────────────────────────
 
-void GestureDetector::handlePinch(const Hand &hand, HandState &state) {
-    detectZoom(hand, state);
+void GestureDetector::handlePinch(const Hand& hand, HandState& state)
+{
+    // Freeze cursor during pinch — don't move it while zooming
+    EventInjector::moveCursor(state.smoothedPos);
+
+    detectZoom  (hand, state);
     detectRotate(hand, state);
 }
 
-bool GestureDetector::detectZoom(const Hand &hand, HandState &state) {
-    // Use the SDK's own pinch_distance — it's already smoothed and
-    // calibrated for the actual thumb/index tips.
+bool GestureDetector::detectZoom(const Hand& hand, HandState& state)
+{
     float dist = hand.pinchDistance();
 
     if (state.prevPinchDistance < 0.0f) {
@@ -517,8 +524,16 @@ bool GestureDetector::detectZoom(const Hand &hand, HandState &state) {
 
     if (std::abs(delta) < Config::PINCH_NOISE_FLOOR) return false;
 
+    // Throttle — one zoom step per 8 frames (~67ms at 120Hz)
+    if (frameCount_ - state.lastZoomFrame < 8) return false;
+
+    state.lastZoomFrame = frameCount_;
+
+    if (state.hasStablePos)
+        EventInjector::moveCursor(state.stablePos);
+
     EventInjector::zoom(delta * Config::PINCH_SCALE, 1);
-    if (Config::DEBUG_GESTURES && (frameCount_ % 10 == 0))
+    if (Config::DEBUG_GESTURES)
         std::cerr << "[fire] ZOOM delta=" << delta << "\n";
     return true;
 }
@@ -624,6 +639,9 @@ void GestureDetector::handleFist(const Hand &hand, HandState &state) {
     }
 }
 
+
+
+
 // ─────────────────────────────────────────────────────────────────────────
 // Bookkeeping
 // ─────────────────────────────────────────────────────────────────────────
@@ -640,8 +658,7 @@ void GestureDetector::resetTwoFingerState(HandState &state, int currentFrame) {
     state.lastScrollFrame = currentFrame;
 }
 
-void GestureDetector::resetPinchState(HandState &state) {
-    state.prevPinchDistance = -1.0f;
-    state.hasPrevAngle = false;
+void GestureDetector::resetPinchState(HandState& state) {
+    state.hasPrevAngle         = false;
     state.prevIndexMiddleAngle = 0.0f;
 }

@@ -73,6 +73,8 @@ struct HandState {
     int  candidateFrames    = 0;
     int lastScrollFrame = -100;
     int postDragScrollCooldown = 0;
+    int lastPinchFrame = -100;
+    int lastZoomFrame = -100;
 };
 
 class GestureDetector {

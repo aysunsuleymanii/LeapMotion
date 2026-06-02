@@ -3,7 +3,6 @@
 #include <iostream>
 #include <ctime>
 
-
 static CGPoint currentCursorPos() {
     CGEventRef e = CGEventCreate(NULL);
     CGPoint p = CGEventGetLocation(e);
@@ -70,24 +69,40 @@ void EventInjector::scroll(int32_t deltaY, int32_t deltaX) {
 }
 
 void EventInjector::zoom(float magnification, int phase) {
-    (void)phase;  // not used — macOS Cmd+scroll has no gesture-phase concept
+    (void)phase;
 
-    // Cmd + scroll = zoom in most macOS apps (Safari, Preview, Finder, Maps).
-    // Positive magnification (fingers spreading apart) → scroll up → zoom in.
-    int scrollAmount = static_cast<int>(magnification * 10);
-    if (scrollAmount == 0) return;   // nothing worth sending
+    // Use Cmd+= (zoom in) or Cmd+- (zoom out) — works in Safari, Preview,
+    // Finder, and most macOS apps. Much more reliable than gesture events.
+    if (magnification > 0) {
+        // Cmd+= (zoom in)
+        CGEventRef down = CGEventCreateKeyboardEvent(NULL, 24, true); // = key
+        CGEventSetFlags(down, kCGEventFlagMaskCommand);
+        CGEventPost(kCGHIDEventTap, down);
+        CFRelease(down);
 
-    CGEventRef scroll = CGEventCreateScrollWheelEvent(
-        NULL,
-        kCGScrollEventUnitLine,   // "line" units register as zoom steps
-        1,
-        scrollAmount
-    );
-    CGEventSetFlags(scroll, kCGEventFlagMaskCommand);
-    CGEventPost(kCGHIDEventTap, scroll);
-    CFRelease(scroll);
+        struct timespec ts = {0, 30 * 1000 * 1000};
+        nanosleep(&ts, NULL);
+
+        CGEventRef up = CGEventCreateKeyboardEvent(NULL, 24, false);
+        CGEventSetFlags(up, kCGEventFlagMaskCommand);
+        CGEventPost(kCGHIDEventTap, up);
+        CFRelease(up);
+    } else {
+        // Cmd+- (zoom out)
+        CGEventRef down = CGEventCreateKeyboardEvent(NULL, 27, true); // - key
+        CGEventSetFlags(down, kCGEventFlagMaskCommand);
+        CGEventPost(kCGHIDEventTap, down);
+        CFRelease(down);
+
+        struct timespec ts = {0, 30 * 1000 * 1000};
+        nanosleep(&ts, NULL);
+
+        CGEventRef up = CGEventCreateKeyboardEvent(NULL, 27, false);
+        CGEventSetFlags(up, kCGEventFlagMaskCommand);
+        CGEventPost(kCGHIDEventTap, up);
+        CFRelease(up);
+    }
 }
-
 // Rotate has no universal macOS shortcut. Preview accepts Cmd+L / Cmd+R to
 // rotate an image 90°, and that's good enough for a demo. We accumulate the
 // incoming degree deltas in a static and only fire a shortcut once the
@@ -122,28 +137,32 @@ void EventInjector::rotate(float degrees, int phase) {
 }
 
 void EventInjector::swipeLeft() {
-    // Cmd + [  (Back)
-    CGEventRef keyDown = CGEventCreateKeyboardEvent(NULL, 33, true); // [
+    CGEventRef keyDown = CGEventCreateKeyboardEvent(NULL, 33, true);
     CGEventSetFlags(keyDown, kCGEventFlagMaskCommand);
     CGEventPost(kCGHIDEventTap, keyDown);
+    CFRelease(keyDown);
+
+    struct timespec ts = {0, 30 * 1000 * 1000};
+    nanosleep(&ts, NULL);
 
     CGEventRef keyUp = CGEventCreateKeyboardEvent(NULL, 33, false);
+    CGEventSetFlags(keyUp, kCGEventFlagMaskCommand);
     CGEventPost(kCGHIDEventTap, keyUp);
-
-    CFRelease(keyDown);
     CFRelease(keyUp);
 }
 
 void EventInjector::swipeRight() {
-    // Cmd + ]  (Forward)
-    CGEventRef keyDown = CGEventCreateKeyboardEvent(NULL, 30, true); // ]
+    CGEventRef keyDown = CGEventCreateKeyboardEvent(NULL, 30, true);
     CGEventSetFlags(keyDown, kCGEventFlagMaskCommand);
     CGEventPost(kCGHIDEventTap, keyDown);
+    CFRelease(keyDown);
+
+    struct timespec ts = {0, 30 * 1000 * 1000};
+    nanosleep(&ts, NULL);
 
     CGEventRef keyUp = CGEventCreateKeyboardEvent(NULL, 30, false);
+    CGEventSetFlags(keyUp, kCGEventFlagMaskCommand);
     CGEventPost(kCGHIDEventTap, keyUp);
-
-    CFRelease(keyDown);
     CFRelease(keyUp);
 }
 
