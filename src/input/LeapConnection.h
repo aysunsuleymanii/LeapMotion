@@ -8,7 +8,6 @@
 #endif //LEAPMOTION_LEAPCONNECTION_H
 
 #pragma once
-// #include "LeapC.h"
 #include "../../external/ultraleap/include/LeapC.h"
 
 class LeapConnection {

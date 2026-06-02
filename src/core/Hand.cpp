@@ -38,7 +38,6 @@ Hand::Hand(const LEAP_HAND &raw) {
     }
 }
 
-// ── Getters (all noexcept + zero-copy) ──
 
 uint32_t Hand::id() const noexcept { return id_; }
 bool Hand::isLeft() const noexcept { return left_; }

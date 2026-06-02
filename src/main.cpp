@@ -6,33 +6,26 @@
 #include "core/Frame.h"
 #include "output/EventInjector.h"
 
-int main()
-{
+int main() {
     // Check Accessibility permission before anything else
     if (!EventInjector::checkAccessibility())
         return -1;
 
     LeapConnection connection;
-    if (!connection.open())
-    {
+    if (!connection.open()) {
         std::cerr << "Failed to open Leap connection\n";
         return -1;
     }
 
     std::cout << "[LeapMotion] Connected. Gesture controller running.\n";
 
-    LeapAdapter    adapter(connection);
+    LeapAdapter adapter(connection);
     GestureDetector gestures;
 
-    while (true)
-    {
+    while (true) {
         Frame frame;
-        if (adapter.poll(frame))
-        {
+        if (adapter.poll(frame)) {
             gestures.update(frame);
         }
-        // LeapPollConnection blocks up to 100 ms internally — no busy spin
     }
-
-    return 0;
 }

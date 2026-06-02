@@ -10,7 +10,6 @@ static CGPoint currentCursorPos() {
     return p;
 }
 
-// ── Public implementation ────────────────────────────────────────────────────
 
 bool EventInjector::checkAccessibility() {
     if (!AXIsProcessTrusted()) {
@@ -32,15 +31,9 @@ void EventInjector::moveCursor(CGPoint pos) {
 void EventInjector::leftClick(CGPoint pos) {
     CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, pos, kCGMouseButtonLeft);
     CGEventRef up   = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp,   pos, kCGMouseButtonLeft);
-    // Many apps (especially OpenGL/Metal apps like Anatomy 3D Atlas) ignore
-    // synthetic clicks that don't set the click state. This field tells the
-    // OS "this is the 1st click in a click sequence."
     CGEventSetIntegerValueField(down, kCGMouseEventClickState, 1);
     CGEventSetIntegerValueField(up,   kCGMouseEventClickState, 1);
     CGEventPost(kCGHIDEventTap, down);
-    // Small dwell between down and up so apps register a click instead of
-    // interpreting "down + immediate up at slightly different coords" as
-    // the start of a drag. 30ms is short enough to feel instant.
     struct timespec ts{0, 30'000'000};
     nanosleep(&ts, nullptr);
     CGEventPost(kCGHIDEventTap, up);
@@ -72,7 +65,6 @@ void EventInjector::zoom(float magnification, int phase) {
     (void)phase;
 
     // Use Cmd+= (zoom in) or Cmd+- (zoom out) — works in Safari, Preview,
-    // Finder, and most macOS apps. Much more reliable than gesture events.
     if (magnification > 0) {
         // Cmd+= (zoom in)
         CGEventRef down = CGEventCreateKeyboardEvent(NULL, 24, true); // = key
@@ -103,17 +95,12 @@ void EventInjector::zoom(float magnification, int phase) {
         CFRelease(up);
     }
 }
-// Rotate has no universal macOS shortcut. Preview accepts Cmd+L / Cmd+R to
-// rotate an image 90°, and that's good enough for a demo. We accumulate the
-// incoming degree deltas in a static and only fire a shortcut once the
-// threshold is crossed, so small per-frame deltas don't flood the system.
 void EventInjector::rotate(float degrees, int phase) {
     (void)phase;
 
     static float accumulated = 0.0f;
     accumulated += degrees;
 
-    // Fire a 90°-step rotate when accumulated delta crosses ±45°
     if (accumulated > 45.0f) {
         CGEventRef down = CGEventCreateKeyboardEvent(NULL, 15, true);  // R
         CGEventSetFlags(down, kCGEventFlagMaskCommand);
@@ -188,11 +175,6 @@ void EventInjector::mouseUp(CGPoint pos) {
 }
 
 void EventInjector::smartZoom(CGPoint pos) {
-    // macOS smart zoom = Option + double-tap gesture
-    // Simulated via Cmd+Shift+H or a magnification event with phase
-    // Best approximation: send a double left-click at position
-    // which triggers smart zoom in most macOS apps (Safari, Preview, Maps)
-
     for (int i = 0; i < 2; ++i) {
         CGEventRef down = CGEventCreateMouseEvent(
             NULL, kCGEventLeftMouseDown, pos, kCGMouseButtonLeft);

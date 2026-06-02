@@ -9,9 +9,9 @@ public:
 
     uint32_t id()           const noexcept;
     bool     isLeft()       const noexcept;
-    float    pinch()        const noexcept;          // 0..1 strength
-    float    pinchDistance() const noexcept;         // mm, thumb↔index
-    float    grab()         const noexcept;          // 0..1 strength
+    float    pinch()        const noexcept;
+    float    pinchDistance() const noexcept;
+    float    grab()         const noexcept;
 
     const Vector3& palmPosition() const noexcept;
     const Vector3& palmVelocity() const noexcept;
@@ -35,6 +35,5 @@ private:
     Vector3  tips_[5];
     bool     extended_[5];
 
-    // 🔥 cached (important)
     int extendedCount_;
 };
