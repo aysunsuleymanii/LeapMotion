@@ -20,7 +20,7 @@ namespace Config {
 
     // ── Scroll ──────────────────────────────────────────────────────────────
     // Palm Y/X velocity (mm/s) → scroll pixels per event.
-    constexpr float SCROLL_SENSITIVITY = 0.05f;
+    constexpr float SCROLL_SENSITIVITY = 0.1f;
     // Minimum palm speed (mm/s) to register a scroll tick.
     constexpr float SCROLL_MIN_SPEED   = 80.0f;
 

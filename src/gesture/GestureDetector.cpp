@@ -49,6 +49,7 @@ void GestureDetector::update(const Frame& frame)
         if (state.tapCooldown       > 0) --state.tapCooldown;
         if (state.swipeCooldown     > 0) --state.swipeCooldown;
         if (state.smartZoomCooldown > 0) --state.smartZoomCooldown;
+        if (state.postDragScrollCooldown > 0) --state.postDragScrollCooldown;
 
         // The drag gesture is pose-independent: a grab that starts as a
         // fist must continue dragging even if the user transiently opens
@@ -95,7 +96,7 @@ void GestureDetector::update(const Frame& frame)
                     std::cerr << "[pose] " << poseName(state.lastPose)
                               << " -> " << poseName(pose) << "\n";
 
-                if (state.lastPose == Pose::TwoFinger) resetTwoFingerState(state);
+                if (state.lastPose == Pose::TwoFinger) resetTwoFingerState(state, frameCount_);
                 if (state.lastPose == Pose::Pinch)    resetPinchState(state);
                 // Drop stale cursor/tip history — it's from a different pose
                 // whose coordinates don't correspond to the new one's.
@@ -234,7 +235,7 @@ CGPoint GestureDetector::tipToScreen(const Vector3& p) const
 
 CGPoint GestureDetector::palmToScreen(const Vector3& p) const
 {
-    return tipToScreen(p);   /
+    return tipToScreen(p);
 }
 
 float GestureDetector::indexMiddleAngle(const Hand& hand) const
@@ -388,7 +389,6 @@ void GestureDetector::moveCursorTwoFinger(const Hand& hand, HandState& state)
     state.smoothedPos.x = state.smoothedPos.x * (1.0f - alpha) + raw.x * alpha;
     state.smoothedPos.y = state.smoothedPos.y * (1.0f - alpha) + raw.y * alpha;
 
-    // Same stable-pos tracking as one-finger mode (see comment there)
     bool palmStill = hand.palmVelocity().length() < 60.0f;
     if (palmStill) {
         state.stablePos    = state.smoothedPos;
@@ -489,25 +489,23 @@ bool GestureDetector::detectSwipe(const Hand& hand, HandState& state)
 
 bool GestureDetector::detectScroll(const Hand& hand, HandState& state)
 {
-    // Don't emit scroll events during swipe cooldown — otherwise the
-    // hand's deceleration after a fast swipe shows up as a scroll.
-    if (state.swipeCooldown > 0) return false;
+    if (state.swipeCooldown          > 0) return false;
+    if (state.postDragScrollCooldown > 0) return false;
+    if (frameCount_ - state.lastScrollFrame < 4) return false;
 
-    // Spec: "Scroll: slide two fingers up or down."
-    // So scroll is VERTICAL-only (driven by palm Z = forward/back motion).
-    // Horizontal palm motion is owned by the swipe detector — we don't
-    // emit horizontal scroll events at all, which also stops apps from
-    // interpreting a horizontal scroll as a zoom gesture.
-    float vScrollY = hand.palmVelocity().z;   // forward/back → scroll up/down
-
+    float vScrollY = hand.palmVelocity().z;
     if (std::abs(vScrollY) < Config::SCROLL_MIN_SPEED) return false;
 
+    float clamped = std::clamp(vScrollY, -400.0f, 400.0f);
+    state.lastScrollFrame = frameCount_;
+
     EventInjector::scroll(
-        static_cast<int32_t>(vScrollY * Config::SCROLL_SENSITIVITY),
-        0   // no horizontal scroll — that's what swipe is for
+        static_cast<int32_t>(clamped * Config::SCROLL_SENSITIVITY),
+        0
     );
-    if (Config::DEBUG_GESTURES && (frameCount_ % 10 == 0))
-        std::cerr << "[fire] SCROLL vY=" << vScrollY << "\n";
+    if (Config::DEBUG_GESTURES)
+        std::cerr << "[fire] SCROLL vY=" << vScrollY
+                  << " clamped=" << clamped << "\n";
     return true;
 }
 
@@ -644,6 +642,7 @@ void GestureDetector::handleFist(const Hand& hand, HandState& state)
                 state.dragging          = false;
                 state.grabFallingFrames = 0;
                 state.hasDragPalmStart  = false;
+                state.postDragScrollCooldown = 20;
                 if (Config::DEBUG_GESTURES)
                     std::cerr << "[fire] DROP at ("
                               << target.x << "," << target.y << ")\n";
@@ -674,11 +673,9 @@ void GestureDetector::updatePrevTips(const Hand& hand, HandState& state)
     state.hasPrevTips   = true;
 }
 
-void GestureDetector::resetTwoFingerState(HandState& state)
-{
+void GestureDetector::resetTwoFingerState(HandState& state, int currentFrame) {
     state.twoFingerTapArmed = true;
-    // lastTwoFingerTapFrame intentionally preserved — a user can briefly
-    // leave the two-finger pose between the two taps of a smart-zoom.
+    state.lastScrollFrame   = currentFrame;
 }
 
 void GestureDetector::resetPinchState(HandState& state)

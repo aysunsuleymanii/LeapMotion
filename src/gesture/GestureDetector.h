@@ -71,6 +71,8 @@ struct HandState {
     Pose lastPose           = Pose::None;
     Pose candidatePose      = Pose::None;
     int  candidateFrames    = 0;
+    int lastScrollFrame = -100;
+    int postDragScrollCooldown = 0;
 };
 
 class GestureDetector {
@@ -111,6 +113,6 @@ private:
 
     // ── Bookkeeping ──────────────────────────────────────────────────
     void updatePrevTips(const Hand& hand, HandState& state);
-    void resetTwoFingerState(HandState& state);
+    void resetTwoFingerState(HandState& state, int currentFrame);
     void resetPinchState(HandState& state);
 };
