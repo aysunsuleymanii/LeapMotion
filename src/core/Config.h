@@ -94,5 +94,11 @@ namespace Config {
     // because the user is pinching, not making a fist. Real fist: thumb
     // curled in, pinch signal stays low.
     constexpr float FIST_MAX_PINCH          = 0.70f;
+    constexpr float CURSOR_OFFSET_X = -100.0f;
+
+    constexpr float LEAP_X_MIN = -150.0f;   // mm — left edge of tracking volume
+    constexpr float LEAP_X_MAX =  150.0f;   // mm — right edge
+    constexpr float LEAP_Z_MIN = -120.0f;   // mm — back (cursor top)
+    constexpr float LEAP_Z_MAX =  120.0f;   // mm — front (cursor bottom)
 
 } // namespace Config

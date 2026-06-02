@@ -225,8 +225,8 @@ Pose GestureDetector::classify(const Hand& hand) const
 //       AWAY from your body should move the cursor UP on the screen)
 CGPoint GestureDetector::tipToScreen(const Vector3& p) const
 {
-    float sx = ( p.x * Config::CURSOR_SCALE_X) + screenW_ * 0.5f;
-    float sy = ( p.z * Config::CURSOR_SCALE_Y) + screenH_ * 0.5f;
+    float sx = (p.x - Config::LEAP_X_MIN) / (Config::LEAP_X_MAX - Config::LEAP_X_MIN) * screenW_;
+    float sy = (p.z - Config::LEAP_Z_MIN) / (Config::LEAP_Z_MAX - Config::LEAP_Z_MIN) * screenH_;
     sx = std::clamp(sx, 0.0f, screenW_ - 1);
     sy = std::clamp(sy, 0.0f, screenH_ - 1);
     return CGPointMake(sx, sy);
@@ -234,7 +234,7 @@ CGPoint GestureDetector::tipToScreen(const Vector3& p) const
 
 CGPoint GestureDetector::palmToScreen(const Vector3& p) const
 {
-    return tipToScreen(p);   // same mapping; separate helper for clarity
+    return tipToScreen(p);   /
 }
 
 float GestureDetector::indexMiddleAngle(const Hand& hand) const
