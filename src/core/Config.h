@@ -27,9 +27,12 @@ namespace Config {
     constexpr int SMART_ZOOM_MAX_GAP_FRAMES = 48;
 
     // ── Swipe ───────────────────────────────────────────────────────────────
-    constexpr float SWIPE_VELOCITY_THRESHOLD = 900.0f;
-    constexpr int SWIPE_SUSTAIN_FRAMES = 3;
-    constexpr int SWIPE_COOLDOWN_FRAMES = 45;
+    // A real horizontal flick peaks around 500–1000 mm/s for only 1–2 frames,
+    // so the old 900 mm/s × 3-frame gate almost never triggered. Lowered so a
+    // deliberate two-finger swipe reliably fires one back/forward navigation.
+    constexpr float SWIPE_VELOCITY_THRESHOLD = 450.0f;  // mm/s on the X axis
+    constexpr int SWIPE_SUSTAIN_FRAMES = 2;             // consecutive frames
+    constexpr int SWIPE_COOLDOWN_FRAMES = 45;           // one swipe per ~0.4 s
 
     // ── Grab / Drag / Drop (3D-exclusive) ───────────────────────────────────
     constexpr float GRAB_ON_THRESHOLD = 0.55f;
