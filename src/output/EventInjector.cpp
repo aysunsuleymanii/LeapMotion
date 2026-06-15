@@ -95,32 +95,17 @@ void EventInjector::zoom(float magnification, int phase) {
         CFRelease(up);
     }
 }
-void EventInjector::rotate(float degrees, int phase) {
+void EventInjector::rotate(float direction, int phase) {
     (void)phase;
-
-    static float accumulated = 0.0f;
-    accumulated += degrees;
-
-    if (accumulated > 45.0f) {
-        CGEventRef down = CGEventCreateKeyboardEvent(NULL, 15, true);  // R
-        CGEventSetFlags(down, kCGEventFlagMaskCommand);
-        CGEventRef up   = CGEventCreateKeyboardEvent(NULL, 15, false);
-        CGEventPost(kCGHIDEventTap, down);
-        CGEventPost(kCGHIDEventTap, up);
-        CFRelease(down);
-        CFRelease(up);
-        accumulated = 0.0f;
-    }
-    else if (accumulated < -45.0f) {
-        CGEventRef down = CGEventCreateKeyboardEvent(NULL, 37, true);  // L
-        CGEventSetFlags(down, kCGEventFlagMaskCommand);
-        CGEventRef up   = CGEventCreateKeyboardEvent(NULL, 37, false);
-        CGEventPost(kCGHIDEventTap, down);
-        CGEventPost(kCGHIDEventTap, up);
-        CFRelease(down);
-        CFRelease(up);
-        accumulated = 0.0f;
-    }
+    if (direction == 0.0f) return;
+    CGKeyCode key = (direction > 0.0f) ? 15 /* R */ : 37 /* L */;
+    CGEventRef down = CGEventCreateKeyboardEvent(NULL, key, true);
+    CGEventSetFlags(down, kCGEventFlagMaskCommand);
+    CGEventRef up   = CGEventCreateKeyboardEvent(NULL, key, false);
+    CGEventPost(kCGHIDEventTap, down);
+    CGEventPost(kCGHIDEventTap, up);
+    CFRelease(down);
+    CFRelease(up);
 }
 
 void EventInjector::swipeLeft() {

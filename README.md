@@ -154,11 +154,13 @@ Follow this order and test each gesture separately.
 ### 7. Rotate
 
 **Gesture:**
-- Pinch + wrist rotation
+- Open your hand flat (all fingers extended)
+- Rotate your hand like a dial / steering wheel (wrist rotation)
 
 **Test:**
-- Open image in Preview
-- Rotate wrist → image rotates
+- Open an image in Preview
+- Turn hand right → image rotates right (Cmd + R)
+- Turn hand left → image rotates left (Cmd + L)
 
 **Logs:**
 - `[fire] ROTATE delta=+X.X`

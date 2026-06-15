@@ -10,7 +10,8 @@ enum class Pose {
     Fist,        // grab_strength high → drag / drop
     OneFinger,   // index only → cursor + tap-to-click
     TwoFinger,   // index + middle → scroll / right-click / swipe / smart-zoom
-    Pinch        // thumb + index visible, changing distance → zoom / rotate
+    Pinch,       // thumb + index visible, changing distance → zoom
+    OpenHand     // all fingers extended, turn like a dial → rotate
 };
 
 struct HandState {
@@ -26,8 +27,15 @@ struct HandState {
 
     float prevIndexMiddleAngle = 0.0f;
     bool  hasPrevAngle         = false;
+    float rotAccumDeg          = 0.0f;
 
     float prevPinchDistance = -1.0f;
+    float prevPinchStrength = -1.0f;
+    float zoomAccum         = 0.0f;
+    bool  zoomedOutThisPinch = false;
+    bool  zoomedInThisPinch  = false;
+    float pinchPeak         = 0.0f;
+    bool  zoomReleasing     = false;
     bool  oneFingerTapArmed = true;
     bool  twoFingerTapArmed = true;
 
@@ -78,6 +86,7 @@ private:
     void handleTwoFinger(const Hand& hand, HandState& state);
     void handlePinch    (const Hand& hand, HandState& state);
     void handleFist     (const Hand& hand, HandState& state);
+    void handleOpenHand (const Hand& hand, HandState& state);
 
     void moveCursorOneFinger (const Hand& hand, HandState& state);
     void moveCursorTwoFinger (const Hand& hand, HandState& state);

@@ -12,13 +12,10 @@ static const char *poseName(Pose p) {
         case Pose::OneFinger: return "OneFinger";
         case Pose::TwoFinger: return "TwoFinger";
         case Pose::Pinch: return "Pinch";
+        case Pose::OpenHand: return "OpenHand";
     }
     return "?";
 }
-
-// ─────────────────────────────────────────────────────────────────────────
-// Construction
-// ─────────────────────────────────────────────────────────────────────────
 
 GestureDetector::GestureDetector() {
     CGDirectDisplayID display = CGMainDisplayID();
@@ -26,14 +23,6 @@ GestureDetector::GestureDetector() {
     screenH_ = static_cast<float>(CGDisplayPixelsHigh(display));
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Main update loop. For each hand we:
-//   1. Classify the pose (fist / one-finger / two-finger / pinch / none).
-//   2. If the pose changed, reset the previous pose's per-frame state so
-//      stale values (e.g. last pinch distance) don't leak into the new pose.
-//   3. Dispatch to exactly ONE handler — never multiple in parallel.
-//   4. Store previous-frame values for velocity/edge detection next frame.
-// ─────────────────────────────────────────────────────────────────────────
 
 void GestureDetector::update(const Frame &frame) {
     ++frameCount_;
@@ -74,7 +63,14 @@ void GestureDetector::update(const Frame &frame) {
                 state.hasPrevTips = false;
                 if (pose == Pose::OneFinger) state.oneFingerTapArmed = true;
                 if (pose == Pose::TwoFinger) state.twoFingerTapArmed = true;
-                if (pose == Pose::Pinch) state.tapCooldown = 20;
+                if (pose == Pose::Pinch) {
+                    state.tapCooldown = 20;
+                    state.prevPinchDistance = -1.0f;
+                }
+                if (pose == Pose::OpenHand) {
+                    state.hasPrevAngle = false;
+                    state.rotAccumDeg = 0.0f;
+                }
 
                 if (state.lastPose == Pose::Pinch) {
                     state.tapCooldown = 30;
@@ -90,6 +86,8 @@ void GestureDetector::update(const Frame &frame) {
                 case Pose::TwoFinger: handleTwoFinger(hand, state);
                     break;
                 case Pose::Pinch: handlePinch(hand, state);
+                    break;
+                case Pose::OpenHand: handleOpenHand(hand, state);
                     break;
                 case Pose::Fist: handleFist(hand, state);
                     break;
@@ -136,6 +134,10 @@ Pose GestureDetector::classify(const Hand &hand) const {
             !middleExt && !ringExt && !pinkyExt;
 
     if (pinchActive) return Pose::Pinch;
+
+    if (indexExt && middleExt && ringExt && pinkyExt)
+        return Pose::OpenHand;
+
     if (indexExt && middleExt && !ringExt && !pinkyExt)
         return Pose::TwoFinger;
 
@@ -377,66 +379,128 @@ bool GestureDetector::detectScroll(const Hand &hand, HandState &state) {
 }
 
 void GestureDetector::handlePinch(const Hand &hand, HandState &state) {
-    // Freeze cursor during pinch — don't move it while zooming
     EventInjector::moveCursor(state.smoothedPos);
-
     detectZoom(hand, state);
-    detectRotate(hand, state);
 }
 
 bool GestureDetector::detectZoom(const Hand &hand, HandState &state) {
-    float dist = hand.pinchDistance();
+    float dist  = hand.pinchDistance();
+    float pinch = hand.pinch();
 
     if (state.prevPinchDistance < 0.0f) {
         state.prevPinchDistance = dist;
+        state.prevPinchStrength = pinch;
+        state.zoomAccum = 0.0f;
+        state.zoomedOutThisPinch = false;
+        state.zoomedInThisPinch = false;
         return false;
     }
 
-    float delta = dist - state.prevPinchDistance;
+    float delta     = dist - state.prevPinchDistance;
+    float pinchDrop = state.prevPinchStrength - pinch;
     state.prevPinchDistance = dist;
+    state.prevPinchStrength = pinch;
 
-    if (std::abs(delta) < Config::PINCH_NOISE_FLOOR) return false;
 
-    if (frameCount_ - state.lastZoomFrame < 8) return false;
+    if (pinch < Config::ZOOM_PINCH_MIN) return false;
 
-    state.lastZoomFrame = frameCount_;
+    if (pinchDrop > Config::ZOOM_RELEASE_DROP) {
+        state.zoomAccum *= 0.5f;
+        return false;
+    }
 
-    if (state.hasStablePos)
-        EventInjector::moveCursor(state.stablePos);
+    if (std::abs(delta) > Config::PINCH_MAX_DELTA) return false;
 
-    EventInjector::zoom(delta * Config::PINCH_SCALE, 1);
-    if (Config::DEBUG_GESTURES)
-        std::cerr << "[fire] ZOOM delta=" << delta << "\n";
-    return true;
+    float capped = std::clamp(delta, -Config::ZOOM_FRAME_CAP, Config::ZOOM_FRAME_CAP);
+    state.zoomAccum += capped;
+
+    if (frameCount_ - state.lastZoomFrame < 4) return false;
+
+    if (state.zoomAccum >= Config::ZOOM_STEP_MM) {
+        state.zoomAccum = 0.0f;
+        state.lastZoomFrame = frameCount_;
+        state.zoomedInThisPinch = true;
+        if (state.hasStablePos) EventInjector::moveCursor(state.stablePos);
+        EventInjector::zoom(+1.0f, 1);
+        if (Config::DEBUG_GESTURES) std::cerr << "[fire] ZOOM IN\n";
+        return true;
+    }
+    if (state.zoomAccum <= -Config::ZOOM_STEP_MM) {         // net squeeze → zoom out
+        state.zoomAccum = 0.0f;
+        state.lastZoomFrame = frameCount_;
+        state.zoomedOutThisPinch = true;
+        if (state.hasStablePos) EventInjector::moveCursor(state.stablePos);
+        EventInjector::zoom(-1.0f, 1);
+        if (Config::DEBUG_GESTURES) std::cerr << "[fire] ZOOM OUT\n";
+        return true;
+    }
+
+    if (state.zoomedOutThisPinch &&
+        dist < Config::ZOOM_CONTINUE_TIGHT_MM &&
+        frameCount_ - state.lastZoomFrame >= Config::ZOOM_CONTINUE_FRAMES) {
+        state.lastZoomFrame = frameCount_;
+        if (state.hasStablePos) EventInjector::moveCursor(state.stablePos);
+        EventInjector::zoom(-1.0f, 1);
+        if (Config::DEBUG_GESTURES) std::cerr << "[fire] ZOOM OUT (hold at floor)\n";
+        return true;
+    }
+
+    if (state.zoomedInThisPinch &&
+        dist > Config::ZOOM_CONTINUE_WIDE_MM &&
+        frameCount_ - state.lastZoomFrame >= Config::ZOOM_CONTINUE_FRAMES) {
+        state.lastZoomFrame = frameCount_;
+        if (state.hasStablePos) EventInjector::moveCursor(state.stablePos);
+        EventInjector::zoom(+1.0f, 1);
+        if (Config::DEBUG_GESTURES) std::cerr << "[fire] ZOOM IN (hold at ceiling)\n";
+        return true;
+    }
+    return false;
 }
 
 bool GestureDetector::detectRotate(const Hand &hand, HandState &state) {
-    Vector3 v = hand.fingerTip(1) - hand.fingerTip(0);
+    Vector3 v = hand.fingerTip(4) - hand.fingerTip(1);
+    if (v.length() < Config::ROTATE_MIN_SPAN) {
+        state.hasPrevAngle = false;
+        return false;
+    }
     float angle = v.xzAngle();
 
     if (!state.hasPrevAngle) {
         state.prevIndexMiddleAngle = angle;
         state.hasPrevAngle = true;
+        state.rotAccumDeg = 0.0f;
         return false;
     }
 
     float delta = angle - state.prevIndexMiddleAngle;
-    if (delta > M_PI) delta -= 2.0f * M_PI;
+    if (delta >  M_PI) delta -= 2.0f * M_PI;
     if (delta < -M_PI) delta += 2.0f * M_PI;
     state.prevIndexMiddleAngle = angle;
 
-    if (std::abs(delta) < Config::ROTATE_MIN_DELTA) return false;
+    state.rotAccumDeg += delta * Config::ROTATE_SCALE;
 
-    EventInjector::rotate(delta * Config::ROTATE_SCALE, 1);
-    if (Config::DEBUG_GESTURES && (frameCount_ % 10 == 0))
-        std::cerr << "[fire] ROTATE delta=" << delta << "\n";
-    return true;
+    if (state.rotAccumDeg > Config::ROTATE_STEP_DEG) {
+        EventInjector::rotate(+1.0f, 1);
+        state.rotAccumDeg = 0.0f;
+        if (Config::DEBUG_GESTURES) std::cerr << "[fire] ROTATE +\n";
+        return true;
+    }
+    if (state.rotAccumDeg < -Config::ROTATE_STEP_DEG) {
+        EventInjector::rotate(-1.0f, 1);
+        state.rotAccumDeg = 0.0f;
+        if (Config::DEBUG_GESTURES) std::cerr << "[fire] ROTATE -\n";
+        return true;
+    }
+    return false;
+}
+
+void GestureDetector::handleOpenHand(const Hand &hand, HandState &state) {
+    detectRotate(hand, state);
 }
 
 
 void GestureDetector::handleFist(const Hand &hand, HandState &state) {
     if (!state.dragging) {
-        // Looking for a stable rising edge on grab
         if (hand.grab() > Config::GRAB_ON_THRESHOLD) {
             ++state.grabRisingFrames;
             state.grabFallingFrames = 0;
