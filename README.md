@@ -167,21 +167,7 @@ Follow this order and test each gesture separately.
 
 ---
 
-### 8. Smart Zoom
-
-**Gesture:**
-- Two-finger double tap
-
-**Test:**
-- Safari page
-- Quick double tap → smart zoom activates
-
-**Logs:**
-- `[fire] SMART ZOOM`
-
----
-
-### 9. Drag & Drop (Fist Gesture)
+### 8. Drag & Drop (Fist Gesture)
 
 **Gesture:**
 - Make fist → drag starts
@@ -215,5 +201,4 @@ If drag works correctly, core interaction system is fully functional.
 | 5 | Swipe | Photos/Safari | Page switching |
 | 6 | Zoom | Safari page | Zoom in/out |
 | 7 | Rotate | Preview image | Image rotation |
-| 8 | Smart Zoom | Safari page | Auto zoom |
-| 9 | Drag & Drop | Desktop files | File transfer |
+| 8 | Drag & Drop | Desktop files | File transfer |
