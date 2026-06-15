@@ -7,7 +7,6 @@
 #include "output/EventInjector.h"
 
 int main() {
-    // Check Accessibility permission before anything else
     if (!EventInjector::checkAccessibility())
         return -1;
 
