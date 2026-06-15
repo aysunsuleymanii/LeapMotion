@@ -12,13 +12,14 @@ This project maps hand and finger gestures detected by the Ultraleap hand tracki
 
 | GestureTrackpad Action | Equivalent Hand Pose | Detection Signal |
 |----------------------|--------------------|------------------|
+| Cursor Movement | One-finger pointing (index extended, stable hand) | Continuous fingertip position mapping (index tip world → screen space) |
 | Tap to Click | One-finger tap (index fingertip quick extend-retract) | Fingertip velocity spike + dwell < 150 ms |
 | Right-Click | Two-finger tap (index + middle quick double-tap) | Two fingertip velocity spikes, simultaneous, dwell < 150 ms |
 | Scroll | Two-finger slide up/down (index + middle extended, hand moves on Y axis) | hand.palm.velocity.y mapped to kCGScrollEventUnit |
 | Zoom (Pinch) | Two-finger pinch (thumb + index distance changing) | Distance delta between thumb tip and index tip |
 | Rotate | Two-finger rotate (thumb + index rotate around midpoint) | Angle delta of thumb–index vector around palm normal |
 | Swipe Between Pages | Two-finger swipe left/right (fast horizontal motion) | hand.palm.velocity.x above threshold, short duration |
-| Smart Zoom | Two-finger double-tap (pinch gesture twice within 400 ms) | Two pinch-open events in rapid succession |
+| Drag & Drop | Fist → grab → move → release | Grab state triggered by fist closure (grab threshold), object follows palm position while GRAB active, release on hand open (grab off threshold), movement mapped to continuous cursor drag |
 
 
 ## Build & Run
