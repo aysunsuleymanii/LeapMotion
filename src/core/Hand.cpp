@@ -1,5 +1,10 @@
+/**
+* @file Hand.cpp
+ * @brief Decodes a raw LEAP_HAND into the engine's Hand accessors.
+ */
 #include "Hand.h"
 
+/** @brief Copy the fields the gesture layer needs out of the SDK struct. */
 Hand::Hand(const LEAP_HAND &raw) {
     id_ = raw.id;
     left_ = (raw.type == eLeapHandType_Left);

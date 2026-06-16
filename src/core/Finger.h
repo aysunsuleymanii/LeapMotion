@@ -1,3 +1,4 @@
+/** @file Finger.h @brief Reserved placeholder (no implementation yet). */
 //
 // Created by Aysun Suleymanturk on 2.3.26.
 //

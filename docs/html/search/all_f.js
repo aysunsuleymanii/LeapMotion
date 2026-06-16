@@ -1,0 +1,22 @@
+var searchData=
+[
+  ['screenh_5f_0',['screenH_',['../class_gesture_detector.html#a713f38ebcc099008793786cc34f8c240',1,'GestureDetector']]],
+  ['screenw_5f_1',['screenW_',['../class_gesture_detector.html#a3e6bd3c94a96d5e2c3e9069e14bce681',1,'GestureDetector']]],
+  ['scroll_2',['scroll',['../class_event_injector.html#ad751c78e43346d9a2b9fd50c861cd210',1,'EventInjector']]],
+  ['scroll_5fmin_5fspeed_3',['SCROLL_MIN_SPEED',['../namespace_config.html#ab735a2c07502c8246880eeab4a9879e6',1,'Config']]],
+  ['scroll_5fsensitivity_4',['SCROLL_SENSITIVITY',['../namespace_config.html#aa6e0d00a4586fb761540d5a8f26556d9',1,'Config']]],
+  ['smart_5fzoom_5fmax_5fgap_5fframes_5',['SMART_ZOOM_MAX_GAP_FRAMES',['../namespace_config.html#a0cdec4b26102a21778c9fff32784137a',1,'Config']]],
+  ['smartzoom_6',['smartZoom',['../class_event_injector.html#ae58257d8549196f0ba764c2848fc3dc0',1,'EventInjector']]],
+  ['smartzoomcooldown_7',['smartZoomCooldown',['../struct_hand_state.html#a9f98e23f454b42323a0512c52b3e3722',1,'HandState']]],
+  ['smoothedpos_8',['smoothedPos',['../struct_hand_state.html#a6902a664e8f5787ca785d7c8c7633fd2',1,'HandState']]],
+  ['stablepos_9',['stablePos',['../struct_hand_state.html#ac6570cf1de532fc6db4bfaea40490329',1,'HandState']]],
+  ['states_5f_10',['states_',['../class_gesture_detector.html#ac163e369575f50c7ba6071f83dacbafd',1,'GestureDetector']]],
+  ['swipe_5fcooldown_5fframes_11',['SWIPE_COOLDOWN_FRAMES',['../namespace_config.html#a5b442f2049804431c73f8d9808e33768',1,'Config']]],
+  ['swipe_5fsustain_5fframes_12',['SWIPE_SUSTAIN_FRAMES',['../namespace_config.html#a9f83a7b048954143f07fc06e56c25793',1,'Config']]],
+  ['swipe_5fvelocity_5fthreshold_13',['SWIPE_VELOCITY_THRESHOLD',['../namespace_config.html#ab3d1b37bbc186306de9935d493030d68',1,'Config']]],
+  ['swipecooldown_14',['swipeCooldown',['../struct_hand_state.html#aff5c5abda7b3d599be9c0fe954dc7890',1,'HandState']]],
+  ['swipeleft_15',['swipeLeft',['../class_event_injector.html#a881e5f1df9ab47b6a001d526bc39e8cd',1,'EventInjector']]],
+  ['swipeleftframes_16',['swipeLeftFrames',['../struct_hand_state.html#a9bd90466cd3e475162e5c24e2ef2e376',1,'HandState']]],
+  ['swiperight_17',['swipeRight',['../class_event_injector.html#a80d1ebad227b8d12190950f5b925fe6d',1,'EventInjector']]],
+  ['swiperightframes_18',['swipeRightFrames',['../struct_hand_state.html#aa1b23389a239db86d05e44e456c3dc38',1,'HandState']]]
+];

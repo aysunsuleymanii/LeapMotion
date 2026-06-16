@@ -1,3 +1,7 @@
+/**
+* @file LeapConnection.cpp
+ * @brief Opens/closes the Ultraleap connection and selects Desktop mode.
+ */
 #include "LeapConnection.h"
 #include <iostream>
 #include <ctime>

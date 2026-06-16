@@ -3,6 +3,12 @@
 //
 
 #pragma once
+
+/**
+ * @file Quaternion.h
+ * @brief Quaternion type reserved for 3D orientation maths (HMD mode); not
+ *        used by the current Desktop-mode gesture set.
+ */
 class Quaternion {
 public:
     float x, y, z, w;

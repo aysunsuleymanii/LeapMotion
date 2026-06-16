@@ -1,0 +1,10 @@
+# Minimal Doxyfile for the LeapMotion Gesture Controller.
+# Generate HTML API docs with:  doxygen Doxyfile   (output in ./docs/html)
+PROJECT_NAME           = "LeapMotion Gesture Controller"
+INPUT                  = src
+RECURSIVE              = YES
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+GENERATE_LATEX         = NO
+OUTPUT_DIRECTORY       = docs
+QUIET                  = YES

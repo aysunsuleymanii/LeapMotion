@@ -1,3 +1,7 @@
+/**
+ * @file EventInjector.cpp
+ * @brief CoreGraphics implementations that post synthetic input to macOS.
+ */
 #include "EventInjector.h"
 #include <ApplicationServices/ApplicationServices.h>
 #include <iostream>
@@ -11,6 +15,7 @@ static CGPoint currentCursorPos() {
 }
 
 
+/** @brief Verify (and prompt for) macOS Accessibility permission. */
 bool EventInjector::checkAccessibility() {
     if (!AXIsProcessTrusted()) {
         std::cerr << "[LeapMotion] Accessibility permission required.\n"
@@ -21,6 +26,7 @@ bool EventInjector::checkAccessibility() {
     return true;
 }
 
+/** @brief Warp the system cursor to an absolute screen point. */
 void EventInjector::moveCursor(CGPoint pos) {
     CGWarpMouseCursorPosition(pos);
     CGEventRef e = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, pos, kCGMouseButtonLeft);
@@ -28,6 +34,7 @@ void EventInjector::moveCursor(CGPoint pos) {
     CFRelease(e);
 }
 
+/** @brief Synthesize a left mouse down+up at a point. */
 void EventInjector::leftClick(CGPoint pos) {
     CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, pos, kCGMouseButtonLeft);
     CGEventRef up   = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp,   pos, kCGMouseButtonLeft);
@@ -41,6 +48,7 @@ void EventInjector::leftClick(CGPoint pos) {
     CFRelease(up);
 }
 
+/** @brief Synthesize a right mouse down+up (context menu) at a point. */
 void EventInjector::rightClick(CGPoint pos) {
     CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventRightMouseDown, pos, kCGMouseButtonRight);
     CGEventRef up   = CGEventCreateMouseEvent(NULL, kCGEventRightMouseUp,   pos, kCGMouseButtonRight);
@@ -54,6 +62,7 @@ void EventInjector::rightClick(CGPoint pos) {
     CFRelease(up);
 }
 
+/** @brief Post a scroll-wheel event with the given line deltas. */
 void EventInjector::scroll(int32_t deltaY, int32_t deltaX) {
     CGEventRef e = CGEventCreateScrollWheelEvent(
         NULL, kCGScrollEventUnitPixel, 2, deltaY, deltaX);
@@ -61,6 +70,7 @@ void EventInjector::scroll(int32_t deltaY, int32_t deltaX) {
     CFRelease(e);
 }
 
+/** @brief Emit one zoom step as Cmd + / Cmd - depending on sign. */
 void EventInjector::zoom(float magnification, int phase) {
     (void)phase;
 
@@ -95,9 +105,14 @@ void EventInjector::zoom(float magnification, int phase) {
         CFRelease(up);
     }
 }
+/** @brief Emit one rotate step as Cmd R / Cmd L depending on sign. */
 void EventInjector::rotate(float direction, int phase) {
     (void)phase;
     if (direction == 0.0f) return;
+
+    // One discrete rotation step. The gesture detector decides WHEN to fire
+    // (accumulating wrist turn); this just emits a single Cmd+R (right) or
+    // Cmd+L (left) — Preview's rotate-image shortcuts.
     CGKeyCode key = (direction > 0.0f) ? 15 /* R */ : 37 /* L */;
     CGEventRef down = CGEventCreateKeyboardEvent(NULL, key, true);
     CGEventSetFlags(down, kCGEventFlagMaskCommand);
@@ -108,6 +123,7 @@ void EventInjector::rotate(float direction, int phase) {
     CFRelease(up);
 }
 
+/** @brief Post a left multi-touch swipe (browser back). */
 void EventInjector::swipeLeft() {
     CGEventRef keyDown = CGEventCreateKeyboardEvent(NULL, 33, true);
     CGEventSetFlags(keyDown, kCGEventFlagMaskCommand);
@@ -123,6 +139,7 @@ void EventInjector::swipeLeft() {
     CFRelease(keyUp);
 }
 
+/** @brief Post a right multi-touch swipe (browser forward). */
 void EventInjector::swipeRight() {
     CGEventRef keyDown = CGEventCreateKeyboardEvent(NULL, 30, true);
     CGEventSetFlags(keyDown, kCGEventFlagMaskCommand);
@@ -138,6 +155,7 @@ void EventInjector::swipeRight() {
     CFRelease(keyUp);
 }
 
+/** @brief Press and hold the left button (drag begin). */
 void EventInjector::mouseDown(CGPoint pos) {
     CGEventRef e = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, pos, kCGMouseButtonLeft);
     CGEventSetIntegerValueField(e, kCGMouseEventClickState, 1);
@@ -145,6 +163,7 @@ void EventInjector::mouseDown(CGPoint pos) {
     CFRelease(e);
 }
 
+/** @brief Move with the left button held (drag continue). */
 void EventInjector::mouseDragged(CGPoint pos) {
     CGEventRef e = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDragged, pos, kCGMouseButtonLeft);
     CGEventSetIntegerValueField(e, kCGMouseEventClickState, 1);
@@ -152,6 +171,7 @@ void EventInjector::mouseDragged(CGPoint pos) {
     CFRelease(e);
 }
 
+/** @brief Release the left button (drag end / drop). */
 void EventInjector::mouseUp(CGPoint pos) {
     CGEventRef e = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, pos, kCGMouseButtonLeft);
     CGEventSetIntegerValueField(e, kCGMouseEventClickState, 1);
@@ -159,6 +179,7 @@ void EventInjector::mouseUp(CGPoint pos) {
     CFRelease(e);
 }
 
+/** @brief Trigger a smart-zoom gesture at a point. */
 void EventInjector::smartZoom(CGPoint pos) {
     for (int i = 0; i < 2; ++i) {
         CGEventRef down = CGEventCreateMouseEvent(
